@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="Assets/logo.svg" width="140" alt="GitSwitch logo">
+  <img src="Assets/icon.png" width="140" alt="GitSwitch icon">
 </p>
 
 <h1 align="center">GitSwitch</h1>
