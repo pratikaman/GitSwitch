@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" width="36" height="36">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="2.6" markerHeight="2.6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#000"/>
+    </marker>
+    <clipPath id="cL"><circle cx="10.8" cy="18" r="7.2"/></clipPath>
+    <clipPath id="cR"><circle cx="25.2" cy="18" r="7.2"/></clipPath>
+    <mask id="mL">
+      <circle cx="10.8" cy="18" r="7.2" fill="#fff"/>
+      <g clip-path="url(#cL)" fill="#000">
+        <circle cx="10.8" cy="15.9" r="2.6"/>
+        <circle cx="10.8" cy="25.0" r="4.9"/>
+      </g>
+    </mask>
+    <mask id="mR">
+      <circle cx="25.2" cy="18" r="7.2" fill="#fff"/>
+      <g clip-path="url(#cR)" fill="#000">
+        <circle cx="25.2" cy="15.9" r="2.6"/>
+        <circle cx="25.2" cy="25.0" r="4.9"/>
+      </g>
+    </mask>
+    <mask id="cutDiamond">
+      <rect x="0" y="0" width="36" height="36" fill="#fff"/>
+      <rect x="12.2" y="12.2" width="11.6" height="11.6" rx="1.8" transform="rotate(45 18 18)" fill="#000"/>
+    </mask>
+    <mask id="mDot">
+      <rect x="0" y="0" width="36" height="36" fill="#fff"/>
+      <circle cx="18" cy="18" r="1.7" fill="#000"/>
+    </mask>
+  </defs>
+
+  <!-- avatars with the diamond area knocked out -->
+  <g mask="url(#cutDiamond)">
+    <circle cx="10.8" cy="18" r="7.2" fill="#000" mask="url(#mL)"/>
+    <circle cx="25.2" cy="18" r="7.2" fill="#000" mask="url(#mR)"/>
+  </g>
+
+  <!-- git diamond with a node dot knocked out -->
+  <rect x="14" y="14" width="8" height="8" rx="1.2" transform="rotate(45 18 18)" fill="#000" mask="url(#mDot)"/>
+
+  <!-- cycle arrows -->
+  <path d="M 9.5 6.8 Q 18 2.6 26.5 6.8" fill="none" stroke="#000" stroke-width="2.4" stroke-linecap="round" marker-end="url(#ah)"/>
+  <path d="M 26.5 29.2 Q 18 33.4 9.5 29.2" fill="none" stroke="#000" stroke-width="2.4" stroke-linecap="round" marker-end="url(#ah)"/>
+</svg>

@@ -39,14 +39,29 @@ struct MenuBarLabel: View {
     @EnvironmentObject var state: AppState
     @AppStorage("showNameInMenuBar") private var showName = true
 
+    private static let templateIcon: NSImage? = {
+        guard let url = Bundle.main.url(forResource: "MenuBarIcon", withExtension: "tiff"),
+              let img = NSImage(contentsOf: url) else { return nil }
+        img.isTemplate = true
+        img.size = NSSize(width: 18, height: 18)
+        return img
+    }()
+
+    private var icon: Image {
+        if let ns = Self.templateIcon {
+            return Image(nsImage: ns)
+        }
+        return Image(systemName: "person.crop.circle")
+    }
+
     var body: some View {
         if showName, let login = state.activeLogin {
             HStack(spacing: 4) {
-                Image(systemName: "person.crop.circle")
+                icon.renderingMode(.template)
                 Text(login)
             }
         } else {
-            Image(systemName: "person.crop.circle")
+            icon.renderingMode(.template)
         }
     }
 }

@@ -19,6 +19,7 @@ swiftc -O -swift-version 5 -parse-as-library \
 cp Info.plist "$APP/Contents/Info.plist"
 mkdir -p "$APP/Contents/Resources"
 cp Assets/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+cp Assets/MenuBarIcon.tiff "$APP/Contents/Resources/MenuBarIcon.tiff"
 codesign --force --sign - "$APP"
 echo "Built $APP"
 
