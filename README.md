@@ -1,4 +1,8 @@
-# GitSwitch
+<p align="center">
+  <img src="Assets/logo.svg" width="140" alt="GitSwitch logo">
+</p>
+
+<h1 align="center">GitSwitch</h1>
 
 A macOS menu bar app for switching between multiple GitHub accounts on one Mac.
 

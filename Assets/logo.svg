@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-labelledby="t">
+  <title id="t">GitSwitch logo</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2D333B"/>
+      <stop offset="100%" stop-color="#0D1117"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#56D364"/>
+      <stop offset="100%" stop-color="#2EA043"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#79C0FF"/>
+      <stop offset="100%" stop-color="#1F6FEB"/>
+    </linearGradient>
+    <clipPath id="clipL"><circle cx="337" cy="512" r="152"/></clipPath>
+    <clipPath id="clipR"><circle cx="687" cy="512" r="152"/></clipPath>
+    <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="3" markerHeight="3" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#E6EDF3"/>
+    </marker>
+  </defs>
+
+  <!-- macOS squircle plate -->
+  <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#bg)"/>
+
+  <!-- left avatar (account A) -->
+  <circle cx="337" cy="512" r="152" fill="url(#green)"/>
+  <g clip-path="url(#clipL)" fill="#FFFFFF">
+    <circle cx="337" cy="472" r="50"/>
+    <circle cx="337" cy="652" r="95"/>
+  </g>
+
+  <!-- right avatar (account B) -->
+  <circle cx="687" cy="512" r="152" fill="url(#blue)"/>
+  <g clip-path="url(#clipR)" fill="#FFFFFF">
+    <circle cx="687" cy="472" r="50"/>
+    <circle cx="687" cy="652" r="95"/>
+  </g>
+
+  <!-- swap arrows -->
+  <path d="M 672 268 Q 512 178 352 268" fill="none" stroke="#E6EDF3" stroke-width="38" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <path d="M 352 756 Q 512 846 672 756" fill="none" stroke="#E6EDF3" stroke-width="38" stroke-linecap="round" marker-end="url(#arrow)"/>
+</svg>
