@@ -6,6 +6,13 @@ struct GitIdentity: Codable, Equatable {
     var email: String = ""
 }
 
+struct GlanceCounts: Equatable {
+    var prs: Int
+    var reviews: Int
+    var notifications: Int
+    var fetchedAt: Date
+}
+
 final class AppState: ObservableObject {
     static let shared = AppState()
 
@@ -15,8 +22,12 @@ final class AppState: ObservableObject {
     @Published var lastError: String?
     @Published var gitIdentityNow: GitIdentity?
     @Published private(set) var identities: [String: GitIdentity] = [:]
+    @Published var glance: [String: GlanceCounts] = [:]
+    @Published var rules: [FolderRule] = []
 
     private var timer: Timer?
+    private var glanceTimer: Timer?
+    private var glanceInFlight = false
     private var autoFetchAttempted = Set<String>()
     private let hostsPath = NSString(string: "~/.config/gh/hosts.yml").expandingTildeInPath
 
@@ -26,6 +37,56 @@ final class AppState: ObservableObject {
         refreshGitIdentityNow()
         timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
             self?.refresh()
+        }
+        loadRules()
+        refreshGlance()
+        glanceTimer = Timer.scheduledTimer(withTimeInterval: 600, repeats: true) { [weak self] _ in
+            self?.refreshGlance(force: true)
+        }
+    }
+
+    func loadRules() {
+        DispatchQueue.global().async { [weak self] in
+            let r = RulesManager.loadRules()
+            DispatchQueue.main.async {
+                if r != self?.rules { self?.rules = r }
+            }
+        }
+    }
+
+    /// Per-account PR / review-request / notification counts, fetched with each
+    /// account's own token (no switching involved).
+    func refreshGlance(force: Bool = false) {
+        guard !glanceInFlight else { return }
+        if !force, let newest = glance.values.map(\.fetchedAt).max(),
+           Date().timeIntervalSince(newest) < 300 { return }
+        let logins = accounts
+        guard !logins.isEmpty else { return }
+        glanceInFlight = true
+        DispatchQueue.global().async { [weak self] in
+            var result: [String: GlanceCounts] = [:]
+            for login in logins {
+                let tok = Shell.run(Shell.gh, ["auth", "token", "--user", login]).out
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !tok.isEmpty else { continue }
+                func count(_ path: String, _ jq: String) -> Int? {
+                    let r = Shell.run(Shell.gh, ["api", path, "--jq", jq], extraEnv: ["GH_TOKEN": tok])
+                    guard r.status == 0 else { return nil }
+                    return Int(r.out.trimmingCharacters(in: .whitespacesAndNewlines))
+                }
+                let prs = count("search/issues?q=is:pr+is:open+author:\(login)", ".total_count")
+                let reviews = count("search/issues?q=is:pr+is:open+review-requested:\(login)", ".total_count")
+                let notifs = count("notifications?per_page=50", "length")
+                if prs != nil || reviews != nil || notifs != nil {
+                    result[login] = GlanceCounts(
+                        prs: prs ?? 0, reviews: reviews ?? 0,
+                        notifications: notifs ?? 0, fetchedAt: Date())
+                }
+            }
+            DispatchQueue.main.async {
+                self?.glanceInFlight = false
+                self?.glance.merge(result) { _, new in new }
+            }
         }
     }
 
@@ -230,6 +291,12 @@ final class AppState: ObservableObject {
         if let data = try? JSONEncoder().encode(identities),
            let s = String(data: data, encoding: .utf8) {
             UserDefaults.standard.set(s, forKey: "identities")
+        }
+        // Keep folder-rule identity files in step with edited identities.
+        for rule in rules {
+            if let login = rule.login, let id = identities[login] {
+                RulesManager.writeIdentityFile(login: login, identity: id)
+            }
         }
     }
 }

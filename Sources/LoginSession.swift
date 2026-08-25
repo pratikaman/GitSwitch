@@ -15,6 +15,10 @@ final class LoginSession: ObservableObject {
     @Published var status: Status = .idle
     @Published var code: String?
 
+    /// Called on success. Defaults to the add-account behavior; device flows
+    /// used for other purposes (e.g. scope refresh) override this.
+    var onSuccess: (() -> Void)? = { AppState.shared.handleLoginSuccess() }
+
     private var process: Process?
     private let bufferQueue = DispatchQueue(label: "gitswitch.login-buffer")
     private var buffer = ""
@@ -22,7 +26,7 @@ final class LoginSession: ObservableObject {
     private var cancelled = false
     private var verificationURL = "https://github.com/login/device"
 
-    func start() {
+    func start(args: [String] = ["auth", "login", "--hostname", "github.com", "--git-protocol", "https", "--web"]) {
         cancel(silent: true)
         cancelled = false
         buffer = ""
@@ -32,7 +36,7 @@ final class LoginSession: ObservableObject {
 
         let p = Process()
         p.executableURL = URL(fileURLWithPath: Shell.gh)
-        p.arguments = ["auth", "login", "--hostname", "github.com", "--git-protocol", "https", "--web"]
+        p.arguments = args
         var env = ProcessInfo.processInfo.environment
         env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
         env["GH_NO_UPDATE_NOTIFIER"] = "1"
@@ -64,7 +68,7 @@ final class LoginSession: ObservableObject {
                     if proc.terminationStatus == 0 {
                         let login = Self.match(#"Logged in as (\S+)"#, in: output) ?? "your account"
                         self.status = .success(login)
-                        AppState.shared.handleLoginSuccess()
+                        self.onSuccess?()
                     } else {
                         let tail = output
                             .split(separator: "\n")

@@ -5,6 +5,8 @@ import ServiceManagement
 enum WindowID {
     static let addAccount = "add-account"
     static let manage = "manage-accounts"
+    static let repoCheck = "repo-check"
+    static let clone = "clone"
 }
 
 @main
@@ -29,6 +31,18 @@ struct GitSwitchApp: App {
 
         Window("GitHub Accounts", id: WindowID.manage) {
             ManageView()
+                .environmentObject(state)
+        }
+        .windowResizability(.contentSize)
+
+        Window("Check Repo", id: WindowID.repoCheck) {
+            RepoCheckView()
+                .environmentObject(state)
+        }
+        .windowResizability(.contentSize)
+
+        Window("Clone from GitHub", id: WindowID.clone) {
+            CloneView()
                 .environmentObject(state)
         }
         .windowResizability(.contentSize)
@@ -90,7 +104,13 @@ struct MenuContent: View {
                 )) {
                     Text(login)
                 }
+                if let g = state.glance[login] {
+                    Text("      \(glanceText(g))")
+                }
             }
+            Divider()
+            Button("Check a Repo…") { open(WindowID.repoCheck) }
+            Button("Clone from GitHub…") { open(WindowID.clone) }
             Divider()
             Button("Add GitHub Account…") { open(WindowID.addAccount) }
             Button("Manage Accounts…") { open(WindowID.manage) }
@@ -106,7 +126,15 @@ struct MenuContent: View {
             Button("Quit GitSwitch") { NSApp.terminate(nil) }
                 .keyboardShortcut("q")
         }
-        .onAppear { state.refresh() }
+        .onAppear {
+            state.refresh()
+            state.refreshGlance()
+        }
+    }
+
+    private func glanceText(_ g: GlanceCounts) -> String {
+        let n = g.notifications >= 50 ? "50+" : "\(g.notifications)"
+        return "\(g.prs) PRs · \(g.reviews) reviews · \(n) unread"
     }
 
     private func open(_ id: String) {

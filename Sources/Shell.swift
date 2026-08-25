@@ -22,7 +22,7 @@ enum Shell {
     }
 
     @discardableResult
-    static func run(_ executable: String, _ args: [String]) -> Result {
+    static func run(_ executable: String, _ args: [String], extraEnv: [String: String] = [:]) -> Result {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: executable)
         p.arguments = args
@@ -30,6 +30,7 @@ enum Shell {
         env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
         env["GH_NO_UPDATE_NOTIFIER"] = "1"
         env["NO_COLOR"] = "1"
+        env.merge(extraEnv) { _, new in new }
         p.environment = env
         p.standardInput = FileHandle.nullDevice
         let outPipe = Pipe(), errPipe = Pipe()

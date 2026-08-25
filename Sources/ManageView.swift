@@ -2,6 +2,28 @@ import SwiftUI
 
 struct ManageView: View {
     @EnvironmentObject var state: AppState
+
+    var body: some View {
+        TabView {
+            AccountsTab()
+                .tabItem { Label("Accounts", systemImage: "person.2") }
+            RulesView()
+                .tabItem { Label("Folder Rules", systemImage: "folder.badge.gearshape") }
+            GuardView()
+                .tabItem { Label("Push Guard", systemImage: "shield") }
+            SSHView()
+                .tabItem { Label("SSH", systemImage: "key") }
+        }
+        .frame(width: 540, height: 480)
+        .onAppear {
+            state.refresh()
+            state.refreshGitIdentityNow()
+        }
+    }
+}
+
+struct AccountsTab: View {
+    @EnvironmentObject var state: AppState
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
@@ -36,11 +58,6 @@ struct ManageView: View {
                 }
             }
             .padding(12)
-        }
-        .frame(width: 500, height: 440)
-        .onAppear {
-            state.refresh()
-            state.refreshGitIdentityNow()
         }
     }
 }

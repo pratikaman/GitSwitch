@@ -13,8 +13,13 @@ The menu bar always shows the active account. Switching does two things in one c
 
 ## Features
 
-- One-click account switching from the menu bar
+- One-click account switching from the menu bar, with per-account open-PR / review-request / unread-notification counts
 - Add any number of GitHub accounts via GitHub's device login flow (the app shows the one-time code, copies it to the clipboard, and opens the browser)
+- **Folder rules** — map folders to accounts with git `includeIf` configs, so repos in those folders always commit with the right identity even if you forget to switch
+- **Push guard** — a global pre-push hook that blocks pushes to GitHub when the active account doesn't match the repo owner (with org → account mappings; repos' own hooks still run; bypass with `GITSWITCH_SKIP=1 git push`)
+- **Repo checker** — drop any repo folder on the Check Repo window to see which account it will push as, which identity it commits with and where that comes from, plus one-click fixes
+- **Clone helper** — clone with a chosen account and get the local commit identity (and optionally a folder rule) set in one step
+- **SSH panel** — see which GitHub login each `~/.ssh/config` host actually authenticates as, and upload public keys to an account
 - Manage window: edit each account's commit name/email, fetch them from the GitHub profile, sign accounts out
 - Optional launch at login
 - No Electron, no dependencies — a single small SwiftUI binary that drives the `gh` CLI
