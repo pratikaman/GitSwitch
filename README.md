@@ -29,17 +29,45 @@ The menu bar always shows the active account. Switching does two things in one c
 
 ## Requirements
 
-- macOS 13+
+- Apple silicon Mac running macOS 13+ (the build script targets arm64)
 - [GitHub CLI](https://cli.github.com) (`brew install gh`)
 - Xcode command line tools (to build)
 
 ## Build & install
 
+### Install using a prompt
+
+Copy this prompt into an AI coding assistant that can run terminal commands on your Mac:
+
+```text
+Install GitSwitch from https://github.com/pratikaman/GitSwitch on my Mac.
+
+Check that I have an Apple silicon Mac running macOS 13 or later, the GitHub
+CLI (gh), and Xcode command line tools. Set up any missing prerequisites,
+or explain any system installation steps I need to complete.
+
+Clone the repository into a suitable local folder, or reuse an existing
+checkout without overwriting local changes. Read README.md and build.sh,
+then run ./build.sh install from the repository directory.
+
+Verify that ~/Applications/GitSwitch.app is installed and running in the
+menu bar. Tell me how to connect my first GitHub account. Preserve any
+existing GitHub accounts and Git configuration during installation.
+```
+
+### Install from Terminal
+
+With the prerequisites installed, run:
+
 ```sh
+git clone https://github.com/pratikaman/GitSwitch.git
+cd GitSwitch
 ./build.sh install
 ```
 
 Builds `build/GitSwitch.app` and copies it to `~/Applications`, then launches it.
+
+If you already have a checkout, run `./build.sh install` from that folder. After installation, click GitSwitch in the menu bar and choose **Connect an account** to sign in through GitHub.
 
 ## How it works
 
