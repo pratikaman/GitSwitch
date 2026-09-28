@@ -28,68 +28,72 @@ struct RulesView: View {
     @State private var error: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Repos inside a mapped folder always commit with that account's name and email — even if you forget to switch.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            ScrollView {
-                VStack(spacing: 8) {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                PageHeader(title: "Folder rules", subtitle: "The right commit identity, wherever you work.")
+                HStack(spacing: 14) {
+                    Image(systemName: "folder.badge.person.crop")
+                        .font(.system(size: 26, weight: .light)).foregroundStyle(GS.accent)
+                    Text("Give a folder an account. Every repository inside it will use that account’s commit name and email automatically.")
+                        .font(.system(size: 13)).foregroundStyle(GS.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(20).frame(maxWidth: .infinity, alignment: .leading)
+                .background(GS.accentSoft.opacity(0.5), in: RoundedRectangle(cornerRadius: 14))
+                VStack(alignment: .leading, spacing: 12) {
+                    Eyebrow(text: "Your folder rules")
                     if state.rules.isEmpty {
-                        Text("No folder rules yet.")
-                            .foregroundStyle(.secondary)
-                            .padding(.vertical, 24)
+                        EmptyState(symbol: "folder.badge.plus", title: "A place for every account",
+                                   detail: "Keep work in one folder and personal projects in another. Add your first rule below.")
+                            .gsSurface()
                     }
                     ForEach(state.rules) { rule in
-                        HStack {
-                            Image(systemName: "folder")
-                                .foregroundStyle(.secondary)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(collapseTilde(rule.dir))
-                                    .font(.callout)
-                                    .lineLimit(1)
-                                    .truncationMode(.middle)
-                                Text("commits as \(rule.login ?? "?")")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                        HStack(spacing: 12) {
+                            Image(systemName: "folder.fill").foregroundStyle(GS.accent)
+                                .frame(width: 34, height: 34).background(GS.accentSoft, in: RoundedRectangle(cornerRadius: 9))
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text(collapseTilde(rule.dir)).font(.system(size: 12, weight: .medium, design: .monospaced))
+                                    .lineLimit(1).truncationMode(.middle).help(rule.dir)
+                                Text("Commits as \(rule.login ?? "unknown account")")
+                                    .font(.system(size: 11)).foregroundStyle(GS.muted)
                             }
-                            Spacer()
-                            Button("Remove") { remove(rule) }
-                                .controlSize(.small)
+                            Spacer(minLength: 8)
+                            Button { remove(rule) } label: { Image(systemName: "trash").foregroundStyle(GS.muted) }
+                                .buttonStyle(.gsQuiet).help("Remove folder rule")
+                                .accessibilityLabel("Remove rule for \(collapseTilde(rule.dir))")
                         }
-                        .padding(8)
-                        .background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .controlBackgroundColor)))
+                        .padding(14).gsSurface()
                     }
                 }
-            }
-            Divider()
-            HStack(spacing: 8) {
-                Button("Choose Folder…") {
-                    if let d = Panels.chooseDirectory(title: "Folder whose repos belong to one account") {
-                        newDir = d
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Add a folder rule").font(.system(size: 14, weight: .semibold))
+                    FormField(label: "Folder") {
+                        HStack {
+                            Image(systemName: "folder").foregroundStyle(GS.muted)
+                            Text(newDir.isEmpty ? "Choose a folder for your repositories" : collapseTilde(newDir))
+                                .font(.system(size: 12)).foregroundStyle(newDir.isEmpty ? GS.muted : GS.ink)
+                                .lineLimit(1).truncationMode(.middle)
+                            Spacer(minLength: 8)
+                            Button("Browse…") {
+                                if let d = Panels.chooseDirectory(title: "Folder whose repos belong to one account") { newDir = d }
+                            }.buttonStyle(.gsSecondary)
+                        }
                     }
-                }
-                Text(newDir.isEmpty ? "no folder selected" : collapseTilde(newDir))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                Spacer()
-                Picker("", selection: $newLogin) {
-                    ForEach(state.accounts, id: \.self) { Text($0).tag($0) }
-                }
-                .labelsHidden()
-                .frame(width: 150)
-                Button("Add Rule") { add() }
-                    .disabled(newDir.isEmpty || newLogin.isEmpty)
-            }
-            if let e = error {
-                Text(e).font(.caption).foregroundStyle(.red)
-            }
-            Text("Rules only control commit identity. Pushing still uses the active account — enable the Push Guard to catch that.")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+                    HStack(alignment: .bottom, spacing: 16) {
+                        FormField(label: "Commit as") {
+                            Picker("Account for folder rule", selection: $newLogin) {
+                                Text("Select an account").tag("")
+                                ForEach(state.accounts, id: \.self) { Text($0).tag($0) }
+                            }.labelsHidden().frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        Button { add() } label: { Label("Add rule", systemImage: "plus") }
+                            .buttonStyle(.gsPrimary).disabled(newDir.isEmpty || newLogin.isEmpty)
+                    }
+                    if let error { Notice(text: error, symbol: "exclamationmark.circle", color: GS.danger) }
+                }.padding(20).gsSurface()
+                Notice(text: "Folder rules set commit identity. Pushes still use your active account; Push Guard can catch a mismatch.")
+            }.padding(28)
         }
-        .padding(14)
         .onAppear {
             state.loadRules()
             if newLogin.isEmpty { newLogin = state.activeLogin ?? state.accounts.first ?? "" }
@@ -98,7 +102,7 @@ struct RulesView: View {
 
     private func add() {
         guard let id = state.identity(for: newLogin), !id.email.isEmpty else {
-            error = "Set a commit email for \(newLogin) in the Accounts tab first."
+            error = "Set a commit email for \(newLogin) in Accounts first."
             return
         }
         error = nil
@@ -140,56 +144,71 @@ struct GuardView: View {
     @State private var error: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Toggle("Block pushes from the wrong account", isOn: guardBinding)
-                .disabled(foreign != nil)
-            if let f = foreign {
-                Text("You already have core.hooksPath set to \(f); GitSwitch won't override it.")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-            } else {
-                Text("Installs a global pre-push hook. A push to a GitHub repo is blocked when the repo's owner expects a different account than the active one. Repos' own pre-push hooks still run. Bypass once with GITSWITCH_SKIP=1 git push.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Divider()
-            Text("Organization mappings")
-                .font(.headline)
-            Text("Repos owned by your own accounts are matched automatically. Add org names here (e.g. a work org → work account).")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            ScrollView {
-                VStack(spacing: 6) {
-                    ForEach(mappings) { m in
-                        HStack {
-                            Text(m.owner).font(.callout)
-                            Image(systemName: "arrow.right").font(.caption2).foregroundStyle(.secondary)
-                            Text(m.login).font(.callout).foregroundStyle(.secondary)
-                            Spacer()
-                            Button("Remove") { removeMapping(m) }.controlSize(.small)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                PageHeader(title: "Push guard", subtitle: "A final check before your code leaves your Mac.")
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(spacing: 14) {
+                        Image(systemName: enabled ? "checkmark.shield.fill" : "shield.lefthalf.filled")
+                            .font(.system(size: 28, weight: .light)).foregroundStyle(GS.accent)
+                            .frame(width: 52, height: 52).background(GS.accentSoft, in: RoundedRectangle(cornerRadius: 14))
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(enabled ? "Your pushes are protected" : "Check before you push")
+                                .font(.system(size: 16, weight: .semibold))
+                            Text("Block GitHub pushes from the wrong account.")
+                                .font(.system(size: 12)).foregroundStyle(GS.muted)
                         }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 6)
-                        .background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .controlBackgroundColor)))
+                        Spacer()
+                        Toggle("Block pushes from the wrong account", isOn: guardBinding)
+                            .labelsHidden().toggleStyle(.switch).disabled(foreign != nil)
+                    }
+                    if let foreign {
+                        Notice(text: "Your Git hooks are already managed at \(foreign). GitSwitch will leave that setting in place.", symbol: "exclamationmark.triangle", color: GS.warning)
+                    } else {
+                        Notice(text: "Checks the repository owner against your active account. Existing repository hooks continue to run.")
+                    }
+                }.padding(20).gsSurface(highlighted: enabled)
+                VStack(alignment: .leading, spacing: 12) {
+                    Eyebrow(text: "Organization mappings")
+                    Text("Your own accounts are matched automatically. Map an organization to the account you use there.")
+                        .font(.system(size: 12)).foregroundStyle(GS.muted)
+                    if mappings.isEmpty {
+                        EmptyState(symbol: "building.2", title: "Bring your organizations along",
+                                   detail: "Add an organization below so Push Guard knows which account belongs to it.").gsSurface()
+                    }
+                    ForEach(mappings) { mapping in
+                        HStack(spacing: 12) {
+                            Image(systemName: "building.2").foregroundStyle(GS.muted)
+                            Text(mapping.owner).font(.system(size: 13, weight: .medium)).lineLimit(1)
+                            Image(systemName: "arrow.right").font(.system(size: 10)).foregroundStyle(GS.muted)
+                            Text(mapping.login).font(.system(size: 12)).foregroundStyle(GS.accent).lineLimit(1)
+                            Spacer()
+                            Button { removeMapping(mapping) } label: { Image(systemName: "trash") }
+                                .buttonStyle(.gsQuiet).accessibilityLabel("Remove mapping for \(mapping.owner)")
+                        }.padding(14).gsSurface()
                     }
                 }
-            }
-            HStack(spacing: 8) {
-                TextField("org or owner name", text: $newOwner)
-                    .textFieldStyle(.roundedBorder)
-                Picker("", selection: $newLogin) {
-                    ForEach(state.accounts, id: \.self) { Text($0).tag($0) }
-                }
-                .labelsHidden()
-                .frame(width: 150)
-                Button("Add") { addMapping() }
-                    .disabled(newOwner.trimmingCharacters(in: .whitespaces).isEmpty || newLogin.isEmpty)
-            }
-            if let e = error {
-                Text(e).font(.caption).foregroundStyle(.red)
-            }
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Connect an organization").font(.system(size: 14, weight: .semibold))
+                    HStack(alignment: .bottom, spacing: 12) {
+                        FormField(label: "Organization or owner") {
+                            TextField("e.g. your-team", text: $newOwner).gsField()
+                                .accessibilityLabel("Organization or owner name")
+                        }
+                        FormField(label: "Account") {
+                            Picker("Account for organization", selection: $newLogin) {
+                                Text("Select an account").tag("")
+                                ForEach(state.accounts, id: \.self) { Text($0).tag($0) }
+                            }.labelsHidden().padding(.vertical, 6)
+                        }
+                        Button("Add") { addMapping() }.buttonStyle(.gsPrimary)
+                            .disabled(newOwner.trimmingCharacters(in: .whitespaces).isEmpty || newLogin.isEmpty)
+                    }
+                    if let error { Notice(text: error, symbol: "exclamationmark.circle", color: GS.danger) }
+                }.padding(20).gsSurface()
+                Notice(text: "Need a one-time bypass? Run GITSWITCH_SKIP=1 git push.", symbol: "terminal")
+            }.padding(28)
         }
-        .padding(14)
         .onAppear { reload() }
     }
 
@@ -259,72 +278,88 @@ struct SSHView: View {
     @StateObject private var scopeSession = LoginSession()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("SSH-remote repos ignore account switching — they authenticate with whichever key GitHub knows. This shows who each SSH host in ~/.ssh/config actually signs in as.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            ScrollView {
-                VStack(spacing: 6) {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                HStack {
+                    PageHeader(title: "SSH keys", subtitle: "Know who’s on the other end of your connection.")
+                    Spacer()
+                    Button { retestAll() } label: { Image(systemName: "arrow.clockwise") }
+                        .buttonStyle(.gsSecondary).help("Retest SSH connections")
+                        .accessibilityLabel("Retest SSH connections")
+                }
+                Notice(text: "SSH repositories use their key’s identity, independently of your active account. These connections come from your SSH configuration.", symbol: "key.horizontal")
+                    .padding(18).background(GS.accentSoft.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+                VStack(alignment: .leading, spacing: 12) {
+                    Eyebrow(text: "GitHub connections")
                     if aliases.isEmpty {
-                        Text("No github.com hosts found in ~/.ssh/config.")
-                            .foregroundStyle(.secondary)
-                            .padding(.vertical, 16)
+                        EmptyState(symbol: "key.horizontal", title: "No SSH hosts yet",
+                                   detail: "GitHub hosts in ~/.ssh/config will appear here, along with the account each key connects to.").gsSurface()
                     }
-                    ForEach(aliases) { a in
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(a.host).font(.callout)
-                                if let k = a.identityFile {
-                                    Text(collapseTilde(k)).font(.caption).foregroundStyle(.secondary)
+                    ForEach(aliases) { alias in
+                        HStack(spacing: 12) {
+                            Image(systemName: "terminal").foregroundStyle(GS.accent)
+                                .frame(width: 34, height: 34).background(GS.accentSoft, in: RoundedRectangle(cornerRadius: 9))
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text(alias.host).font(.system(size: 13, weight: .medium, design: .monospaced))
+                                if let key = alias.identityFile {
+                                    Text(collapseTilde(key)).font(.system(size: 11)).foregroundStyle(GS.muted)
+                                        .lineLimit(1).truncationMode(.middle).help(key)
                                 }
                             }
                             Spacer()
-                            switch results[a.host] {
+                            switch results[alias.host] {
                             case .none:
-                                ProgressView().controlSize(.small)
-                            case .some(let r) where r.hasPrefix("@"):
-                                Label(String(r.dropFirst()), systemImage: "checkmark.circle.fill")
-                                    .font(.caption)
-                                    .foregroundStyle(.green)
+                                ProgressView().controlSize(.small).accessibilityLabel("Testing connection")
+                            case .some(let result) where result.hasPrefix("@"):
+                                Label(String(result.dropFirst()), systemImage: "checkmark.circle.fill")
+                                    .font(.system(size: 11)).foregroundStyle(GS.accent)
                             case .some:
-                                Label("no access", systemImage: "xmark.circle")
-                                    .font(.caption)
-                                    .foregroundStyle(.orange)
+                                Label("No access", systemImage: "exclamationmark.circle")
+                                    .font(.system(size: 11)).foregroundStyle(GS.warning)
                             }
-                        }
-                        .padding(8)
-                        .background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .controlBackgroundColor)))
+                        }.padding(16).gsSurface()
                     }
                 }
-            }
-            Divider()
-            Text("Upload a public key to an account")
-                .font(.headline)
-            HStack(spacing: 8) {
-                Picker("", selection: $selKey) {
-                    ForEach(keys, id: \.self) { Text(collapseTilde($0)).tag($0) }
-                }
-                .labelsHidden()
-                Picker("", selection: $selAccount) {
-                    ForEach(state.accounts, id: \.self) { Text($0).tag($0) }
-                }
-                .labelsHidden()
-                .frame(width: 150)
-                Button(uploading ? "Uploading…" : "Upload") { upload() }
-                    .disabled(uploading || selKey.isEmpty || selAccount.isEmpty)
-            }
-            if let s = uploadStatus {
-                Text(s).font(.caption).foregroundStyle(s.hasPrefix("Uploaded") ? .green : .red)
-            }
+                VStack(alignment: .leading, spacing: 18) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Add a key to GitHub").font(.system(size: 14, weight: .semibold))
+                        Text("Upload an existing public key to one of your accounts.")
+                            .font(.system(size: 12)).foregroundStyle(GS.muted)
+                    }
+                    if keys.isEmpty {
+                        Notice(text: "No public keys found in ~/.ssh. Create an SSH key to get started.")
+                    }
+                    FormField(label: "Public key") {
+                        Picker("Public key", selection: $selKey) {
+                            Text("Select a public key").tag("")
+                            ForEach(keys, id: \.self) { Text(collapseTilde($0)).tag($0) }
+                        }.labelsHidden()
+                    }
+                    HStack(alignment: .bottom, spacing: 16) {
+                        FormField(label: "GitHub account") {
+                            Picker("GitHub account for key", selection: $selAccount) {
+                                Text("Select an account").tag("")
+                                ForEach(state.accounts, id: \.self) { Text($0).tag($0) }
+                            }.labelsHidden()
+                        }
+                        Button { upload() } label: {
+                            Label(uploading ? "Uploading…" : "Upload key", systemImage: "arrow.up.to.line")
+                        }
+                        .buttonStyle(.gsPrimary).disabled(uploading || selKey.isEmpty || selAccount.isEmpty)
+                    }
+                    .disabled(uploading)
+                    if let uploadStatus {
+                        Notice(text: uploadStatus, symbol: uploadStatus.hasPrefix("Uploaded") ? "checkmark.circle" : "info.circle",
+                               color: uploadStatus.hasPrefix("Uploaded") ? GS.accent : GS.danger)
+                    }
+                }.padding(20).gsSurface()
+            }.padding(28)
         }
-        .padding(14)
         .onAppear { reload() }
         .sheet(isPresented: $showScopeFlow) {
-            DeviceCodeSheet(
-                session: scopeSession,
-                title: "Allow GitSwitch to manage SSH keys for \(selAccount)",
-                onCancel: { cancelScopeFlow() }
-            )
+            DeviceCodeSheet(session: scopeSession,
+                            title: "Manage SSH keys for \(selAccount)",
+                            onCancel: { cancelScopeFlow() })
         }
     }
 
@@ -433,38 +468,32 @@ struct DeviceCodeSheet: View {
     let onCancel: () -> Void
 
     var body: some View {
-        VStack(spacing: 14) {
-            Text(title)
-                .font(.headline)
+        VStack(spacing: 20) {
+            Image(systemName: "key.horizontal").font(.system(size: 28)).foregroundStyle(GS.accent)
+            Text(title).font(.system(size: 20, weight: .semibold, design: .rounded))
                 .multilineTextAlignment(.center)
             switch session.status {
             case .idle, .starting:
                 ProgressView("Contacting GitHub…")
             case .waiting:
-                Text(session.code ?? "…")
-                    .font(.system(size: 30, weight: .bold, design: .monospaced))
-                    .textSelection(.enabled)
-                Text("The code is on your clipboard; enter it on the GitHub page that just opened.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                AuthorizationCodeView(session: session)
+                Text("Enter this code on GitHub to give this account access to manage SSH keys.")
+                    .font(.system(size: 12)).foregroundStyle(GS.muted).multilineTextAlignment(.center)
+                Button { session.openVerificationPage() } label: {
+                    Label("Continue on GitHub", systemImage: "arrow.up.right")
+                }.buttonStyle(.gsPrimary)
                 HStack(spacing: 8) {
                     ProgressView().controlSize(.small)
-                    Text("Waiting for authorization…").font(.caption).foregroundStyle(.secondary)
+                    Text("Waiting for authorization…").font(.system(size: 11)).foregroundStyle(GS.muted)
                 }
             case .success:
-                Label("Authorized", systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-            case .failed(let msg):
-                Text(msg)
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.red)
-                    .lineLimit(4)
+                Label("Authorized", systemImage: "checkmark.circle.fill").foregroundStyle(GS.accent)
+            case .failed(let message):
+                Notice(text: message, symbol: "exclamationmark.circle", color: GS.danger)
             }
-            Button("Cancel", action: onCancel)
-                .keyboardShortcut(.cancelAction)
+            Button("Cancel", action: onCancel).buttonStyle(.gsSecondary).keyboardShortcut(.cancelAction)
         }
-        .padding(20)
-        .frame(width: 340)
+        .padding(28).frame(width: 420)
+        .foregroundStyle(GS.ink).background(GS.canvas).tint(GS.accent)
     }
 }

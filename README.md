@@ -6,6 +6,8 @@
 
 A macOS menu bar app for switching between multiple GitHub accounts on one Mac.
 
+**Current version: 1.2.0** · [Changelog](CHANGELOG.md)
+
 The menu bar always shows the active account. Switching does two things in one click:
 
 - runs `gh auth switch`, so `git push` (over HTTPS via the `gh auth git-credential` helper) uses the selected account
@@ -13,6 +15,7 @@ The menu bar always shows the active account. Switching does two things in one c
 
 ## Features
 
+- Native light and dark themes, a compact account-switching popover, and a resizable workspace with sidebar navigation
 - One-click account switching from the menu bar, with per-account open-PR / review-request / unread-notification counts
 - Add any number of GitHub accounts via GitHub's device login flow (the app shows the one-time code, copies it to the clipboard, and opens the browser)
 - **Folder rules** — map folders to accounts with git `includeIf` configs, so repos in those folders always commit with the right identity even if you forget to switch
@@ -20,7 +23,7 @@ The menu bar always shows the active account. Switching does two things in one c
 - **Repo checker** — drop any repo folder on the Check Repo window to see which account it will push as, which identity it commits with and where that comes from, plus one-click fixes
 - **Clone helper** — clone with a chosen account and get the local commit identity (and optionally a folder rule) set in one step
 - **SSH panel** — see which GitHub login each `~/.ssh/config` host actually authenticates as, and upload public keys to an account
-- Manage window: edit each account's commit name/email, fetch them from the GitHub profile, sign accounts out
+- Accounts workspace: edit each account's commit name/email, fetch them from the GitHub profile, and sign accounts out; a dedicated Preferences page controls identity sync, menu bar display, and launch at login
 - Optional launch at login
 - No Electron, no dependencies — a single small SwiftUI binary that drives the `gh` CLI
 

@@ -21,7 +21,7 @@ struct GitSwitchApp: App {
             MenuBarLabel()
                 .environmentObject(state)
         }
-        .menuBarExtraStyle(.menu)
+        .menuBarExtraStyle(.window)
 
         Window("Add GitHub Account", id: WindowID.addAccount) {
             AddAccountView()
@@ -29,11 +29,12 @@ struct GitSwitchApp: App {
         }
         .windowResizability(.contentSize)
 
-        Window("GitHub Accounts", id: WindowID.manage) {
+        Window("GitSwitch", id: WindowID.manage) {
             ManageView()
                 .environmentObject(state)
         }
-        .windowResizability(.contentSize)
+        .defaultSize(width: 940, height: 700)
+        .windowResizability(.contentMinSize)
 
         Window("Check Repo", id: WindowID.repoCheck) {
             RepoCheckView()
@@ -83,79 +84,154 @@ struct MenuBarLabel: View {
 struct MenuContent: View {
     @EnvironmentObject var state: AppState
     @Environment(\.openWindow) private var openWindow
-    @AppStorage("syncGitIdentity") private var syncIdentity = true
-    @AppStorage("showNameInMenuBar") private var showName = true
+    @AppStorage("selectedManageSection") private var section = "accounts"
 
     var body: some View {
-        Group {
-            if let active = state.activeLogin {
-                Text("Active: \(active)")
-                if let email = state.identity(for: active)?.email, !email.isEmpty {
-                    Text("Committing as \(email)")
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                BrandMark(size: 30)
+                Text("GitSwitch").font(.system(size: 16, weight: .semibold, design: .rounded))
+                Spacer()
+                if state.busy { ProgressView().controlSize(.small) }
+                Button { state.refresh(); state.refreshGlance(force: true) } label: {
+                    Image(systemName: "arrow.clockwise")
                 }
-            } else {
-                Text("No active GitHub account")
+                .buttonStyle(.gsQuiet)
+                .help("Refresh accounts and activity")
+                .accessibilityLabel("Refresh accounts and activity")
             }
-            Divider()
-            ForEach(state.accounts, id: \.self) { login in
-                Toggle(isOn: Binding(
-                    get: { state.activeLogin == login },
-                    set: { _ in state.switchTo(login) }
-                )) {
-                    Text(login)
+            .padding(18)
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Eyebrow(text: "Switch account")
+                    Spacer()
+                    Text("github.com").font(.system(size: 10)).foregroundStyle(GS.muted)
                 }
-                if let g = state.glance[login] {
-                    Text("      \(glanceText(g))")
+                .padding(.horizontal, 6)
+                if state.accounts.isEmpty {
+                    EmptyState(symbol: "person.crop.circle.badge.plus", title: "Your accounts, together",
+                               detail: "Connect GitHub to switch accounts and keep your commits in the right name.")
+                } else {
+                    ScrollView {
+                        VStack(spacing: 5) {
+                            ForEach(state.accounts, id: \.self) { login in
+                                menuAccount(login)
+                            }
+                        }
+                    }
+                    .frame(height: min(CGFloat(state.accounts.count) * 74, 296))
                 }
+                Button { open(WindowID.addAccount) } label: {
+                    Label("Connect an account", systemImage: "plus")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.gsSecondary)
             }
-            Divider()
-            Button("Check a Repo…") { open(WindowID.repoCheck) }
-            Button("Clone from GitHub…") { open(WindowID.clone) }
-            Divider()
-            Button("Add GitHub Account…") { open(WindowID.addAccount) }
-            Button("Manage Accounts…") { open(WindowID.manage) }
-            Divider()
-            Toggle("Sync Git Identity on Switch", isOn: $syncIdentity)
-            Toggle("Show Account Name in Menu Bar", isOn: $showName)
-            Toggle("Launch at Login", isOn: launchAtLogin)
-            if let err = state.lastError {
-                Divider()
-                Text(err).lineLimit(3)
+            .padding(.horizontal, 12)
+            .padding(.bottom, 16)
+
+            if let identity = state.gitIdentityNow, !identity.email.isEmpty {
+                VStack(alignment: .leading, spacing: 5) {
+                    Eyebrow(text: "Global commit identity")
+                    Label(identity.email, systemImage: "arrow.triangle.branch")
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(GS.ink)
+                        .lineLimit(1).truncationMode(.middle)
+                        .help(identity.email)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(14)
+                .background(GS.inset)
             }
-            Divider()
-            Button("Quit GitSwitch") { NSApp.terminate(nil) }
-                .keyboardShortcut("q")
+
+            VStack(spacing: 2) {
+                menuAction("Check a repository", symbol: "checkmark.shield", window: WindowID.repoCheck)
+                menuAction("Clone a repository", symbol: "arrow.down.to.line", window: WindowID.clone)
+                menuAction("Manage accounts", symbol: "person.2", window: WindowID.manage)
+            }
+            .padding(10)
+
+            if let error = state.lastError {
+                Notice(text: error, symbol: "exclamationmark.circle", color: GS.danger)
+                    .lineLimit(3).help(error)
+                    .padding(.horizontal, 16).padding(.bottom, 12)
+            }
+
+            Divider().overlay(GS.line)
+            HStack {
+                Button {
+                    section = "preferences"
+                    open(WindowID.manage)
+                } label: { Label("Preferences", systemImage: "gearshape") }
+                .buttonStyle(.gsQuiet)
+                Spacer()
+                Button("Quit") { NSApp.terminate(nil) }
+                    .buttonStyle(.gsQuiet)
+                    .keyboardShortcut("q")
+            }
+            .padding(8)
         }
+        .frame(width: 356)
+        .foregroundStyle(GS.ink)
+        .background(GS.canvas)
+        .tint(GS.accent)
         .onAppear {
             state.refresh()
+            state.refreshGitIdentityNow()
             state.refreshGlance()
         }
     }
 
-    private func glanceText(_ g: GlanceCounts) -> String {
-        let n = g.notifications >= 50 ? "50+" : "\(g.notifications)"
-        return "\(g.prs) PRs · \(g.reviews) reviews · \(n) unread"
+    private func menuAccount(_ login: String) -> some View {
+        let active = state.activeLogin == login
+        return Button { state.switchTo(login) } label: {
+            HStack(spacing: 11) {
+                AccountAvatar(login: login, size: 38, active: active)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(login).font(.system(size: 13, weight: .semibold)).lineLimit(1).help(login)
+                    if let counts = state.glance[login] {
+                        ActivityCounts(counts: counts, compact: true)
+                    } else {
+                        Text(active ? "Current push account" : "Click to switch")
+                            .font(.system(size: 11)).foregroundStyle(GS.muted)
+                    }
+                }
+                Spacer(minLength: 0)
+                if active {
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(GS.accent)
+                }
+            }
+            .padding(10)
+            .frame(height: 69)
+            .background(active ? GS.accentSoft.opacity(0.65) : GS.surface,
+                        in: RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(active ? GS.accent.opacity(0.25) : GS.line))
+            .contentShape(RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.gsRow)
+        .disabled(state.busy)
+        .accessibilityLabel(active ? "\(login), active account" : "Switch to \(login)")
+    }
+
+    private func menuAction(_ title: String, symbol: String, window: String) -> some View {
+        Button {
+            if window == WindowID.manage { section = "accounts" }
+            open(window)
+        } label: {
+            HStack {
+                Image(systemName: symbol).frame(width: 18).foregroundStyle(GS.muted)
+                Text(title)
+                Spacer()
+                Image(systemName: "chevron.right").font(.system(size: 9)).foregroundStyle(GS.muted)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.gsQuiet)
     }
 
     private func open(_ id: String) {
         openWindow(id: id)
         NSApp.activate(ignoringOtherApps: true)
-    }
-
-    private var launchAtLogin: Binding<Bool> {
-        Binding(
-            get: { SMAppService.mainApp.status == .enabled },
-            set: { enable in
-                do {
-                    if enable {
-                        try SMAppService.mainApp.register()
-                    } else {
-                        try SMAppService.mainApp.unregister()
-                    }
-                } catch {
-                    AppState.shared.lastError = "Launch at login: \(error.localizedDescription)"
-                }
-            }
-        )
     }
 }

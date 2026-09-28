@@ -26,115 +26,149 @@ struct RepoCheckView: View {
     @State private var checking = false
     @State private var error: String?
     @State private var fixMessage: String?
+    @State private var dropTargeted = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Drop a repo folder here (or choose one) to see which account it will push and commit as.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            HStack(spacing: 8) {
-                Button("Choose Repo…") {
-                    if let d = Panels.chooseDirectory(title: "Choose a git repository") {
-                        path = d
-                        analyze()
+        VStack(alignment: .leading, spacing: 22) {
+            PageHeader(title: "Check before you commit", subtitle: "See which identity a repository is really using.")
+            Button { chooseRepository() } label: {
+                HStack(spacing: 16) {
+                    if report != nil {
+                        Image(systemName: "folder.fill").font(.system(size: 24)).foregroundStyle(GS.accent)
+                    }
+                    VStack(alignment: report == nil ? .center : .leading, spacing: report == nil ? 12 : 5) {
+                        if report == nil {
+                            Image(systemName: "folder.badge.questionmark")
+                                .font(.system(size: 32, weight: .light)).foregroundStyle(GS.accent)
+                        }
+                        Text(path.isEmpty ? "Drop a repository here" : (path as NSString).lastPathComponent)
+                            .font(.system(size: 16, weight: .semibold))
+                        Text(path.isEmpty ? "or click to choose a folder" : collapseTilde(path))
+                            .font(.system(size: 12, design: path.isEmpty ? .default : .monospaced))
+                            .foregroundStyle(GS.muted).lineLimit(1).truncationMode(.middle)
+                    }
+                    .frame(maxWidth: .infinity, alignment: report == nil ? .center : .leading)
+                    if report != nil {
+                        Image(systemName: "chevron.right").font(.system(size: 11)).foregroundStyle(GS.muted)
                     }
                 }
-                Text(path.isEmpty ? "no repo selected" : collapseTilde(path))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                Spacer()
-                if checking { ProgressView().controlSize(.small) }
-                Button("Re-check") { analyze() }
-                    .disabled(path.isEmpty || checking)
+                .padding(.horizontal, 20)
+                .padding(.vertical, report == nil ? 34 : 20)
+                .background(dropTargeted ? GS.accentSoft : GS.surface, in: RoundedRectangle(cornerRadius: 14))
+                .overlay(RoundedRectangle(cornerRadius: 14)
+                    .strokeBorder(dropTargeted ? GS.accent : GS.accent.opacity(0.35),
+                                  style: StrokeStyle(lineWidth: 1, dash: [5, 4])))
+                .contentShape(RoundedRectangle(cornerRadius: 14))
             }
+            .buttonStyle(.plain).disabled(checking)
+            .accessibilityLabel("Choose a repository, or drop a repository folder here")
 
-            if let e = error {
-                Label(e, systemImage: "xmark.circle")
-                    .font(.callout)
-                    .foregroundStyle(.red)
+            if checking {
+                HStack(spacing: 10) {
+                    ProgressView().controlSize(.small)
+                    Text("Checking your repository…").font(.system(size: 12)).foregroundStyle(GS.muted)
+                }
             }
-
-            if let r = report {
-                VStack(alignment: .leading, spacing: 8) {
-                    Label(
-                        r.ok ? "Everything matches." : "Mismatch found",
-                        systemImage: r.ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
-                    )
-                    .font(.headline)
-                    .foregroundStyle(r.ok ? Color.green : Color.orange)
-
-                    ForEach(r.problems, id: \.self) { p in
-                        Text(p).font(.callout).foregroundStyle(.orange)
-                    }
-
-                    Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 5) {
-                        row("Repository", (r.owner.map { "\($0)/\(r.repo ?? "?")" } ?? "not GitHub") + "  (\(r.branch))")
-                        row("Remote", "\(r.protoDesc)  \(r.remoteURL ?? "none")")
-                        row("Pushes as", r.pushAccount.map { "\($0)  via \(r.pushVia)" } ?? "unknown")
-                        row("Commits as", "\(r.commitName) <\(r.commitEmail)>")
-                        row("Identity from", r.emailOrigin)
-                        if let ex = r.expected {
-                            row("Expected account", ex)
-                        }
-                    }
-                    .font(.callout)
-
-                    if !r.ok {
-                        HStack(spacing: 8) {
-                            if let ex = r.expected, state.accounts.contains(ex),
-                               ex != state.activeLogin {
-                                Button("Switch to \(ex)") {
-                                    state.switchTo(ex)
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { analyze() }
-                                }
+            if let error { Notice(text: error, symbol: "exclamationmark.circle", color: GS.danger) }
+            if let report {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 18) {
+                        HStack(spacing: 10) {
+                            Image(systemName: report.ok ? "checkmark.shield.fill" : "exclamationmark.triangle.fill")
+                                .font(.system(size: 20))
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(report.ok ? "Everything lines up" : "Something needs your attention")
+                                    .font(.system(size: 15, weight: .semibold))
+                                Text(report.ok ? "No identity mismatches detected." : "Review the details before your next push.")
+                                    .font(.system(size: 12))
                             }
-                            if let ex = r.expected, state.accounts.contains(ex) {
-                                Button("Add Folder Rule") { addRule(login: ex, dir: r.root) }
-                            }
+                        }.foregroundStyle(report.ok ? GS.accent : GS.warning)
+                        ForEach(report.problems, id: \.self) { problem in
+                            Notice(text: problem, symbol: "exclamationmark.circle", color: GS.warning)
                         }
-                        .controlSize(.small)
-                    }
-                    if let m = fixMessage {
-                        Text(m).font(.caption).foregroundStyle(.secondary)
+                        Divider()
+                        Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 12) {
+                            row("Repository", (report.owner.map { "\($0)/\(report.repo ?? "?")" } ?? "Not on GitHub") + "  ·  \(report.branch)")
+                            row("Remote", "\(report.protoDesc)  \(report.remoteURL ?? "None")")
+                            row("Push account", report.pushAccount.map { "\($0) via \(report.pushVia)" } ?? "Unknown")
+                            row("Commit identity", "\(report.commitName) <\(report.commitEmail)>")
+                            row("Identity source", report.emailOrigin)
+                            if let expected = report.expected { row("Expected account", expected) }
+                        }
+                        if let fixMessage { Notice(text: fixMessage) }
+                    }.padding(20).gsSurface()
+                }.frame(maxHeight: 340)
+                if !report.ok, let expected = report.expected, state.accounts.contains(expected) {
+                    HStack(spacing: 8) {
+                        if expected != state.activeLogin {
+                            Button("Switch to \(expected)") {
+                                state.switchTo(expected)
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { analyze() }
+                            }.buttonStyle(.gsPrimary).disabled(state.busy || checking)
+                        }
+                        Button("Add folder rule") { addRule(login: expected, dir: report.root) }
+                            .buttonStyle(.gsSecondary).disabled(checking)
                     }
                 }
-                .padding(12)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: 10).fill(Color(nsColor: .controlBackgroundColor)))
+            } else if !checking {
+                HStack(alignment: .top, spacing: 20) {
+                    checkHint("Push account", symbol: "arrow.up.right", detail: "Where your credentials point")
+                    checkHint("Commit identity", symbol: "person.crop.circle", detail: "The name behind your commits")
+                    checkHint("Folder rules", symbol: "folder", detail: "What’s setting your identity")
+                }.padding(.vertical, 8)
             }
-            Spacer()
+            HStack {
+                Notice(text: "Inspecting a repository doesn’t change its configuration.", symbol: "eye")
+                if !path.isEmpty {
+                    Button { analyze() } label: { Label("Check again", systemImage: "arrow.clockwise") }
+                        .buttonStyle(.gsSecondary).disabled(checking || state.busy)
+                }
+            }
         }
-        .padding(16)
-        .frame(width: 560, height: 400)
-        .onDrop(of: [.fileURL], isTargeted: nil) { providers in
-            guard let p = providers.first else { return false }
-            p.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+        .padding(28).frame(width: 680)
+        .foregroundStyle(GS.ink).background(GS.canvas).tint(GS.accent)
+        .onDrop(of: [.fileURL], isTargeted: $dropTargeted) { providers in
+            guard !checking, let provider = providers.first else { return false }
+            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
                 var url: URL?
                 if let data = item as? Data { url = URL(dataRepresentation: data, relativeTo: nil) }
-                else if let u = item as? URL { url = u }
-                if let u = url {
-                    DispatchQueue.main.async {
-                        path = u.path
-                        analyze()
-                    }
+                else if let value = item as? URL { url = value }
+                if let url, url.isFileURL {
+                    DispatchQueue.main.async { path = url.path; analyze() }
                 }
             }
             return true
         }
     }
 
+    private func chooseRepository() {
+        if let directory = Panels.chooseDirectory(title: "Choose a Git repository") {
+            path = directory
+            analyze()
+        }
+    }
+
+    private func checkHint(_ title: String, symbol: String, detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Image(systemName: symbol).foregroundStyle(GS.accent).padding(.bottom, 3)
+            Text(title).font(.system(size: 12, weight: .semibold))
+            Text(detail).font(.system(size: 11)).foregroundStyle(GS.muted)
+        }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     private func row(_ label: String, _ value: String) -> some View {
-        GridRow {
-            Text(label).foregroundStyle(.secondary).gridColumnAlignment(.trailing)
-            Text(value).textSelection(.enabled)
+        GridRow(alignment: .top) {
+            Text(label).font(.system(size: 11)).foregroundStyle(GS.muted)
+            Text(value).font(.system(size: 12)).textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
     private func analyze() {
         guard !path.isEmpty else { return }
         checking = true
+        report = nil
         error = nil
         fixMessage = nil
         let p = path
